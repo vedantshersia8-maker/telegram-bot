@@ -1,5 +1,5 @@
 import os
-from telegram import Update
+from telegram import Update, ReplyKeyboardMarkup
 from telegram.ext import (
     ApplicationBuilder,
     CommandHandler,
@@ -7,189 +7,172 @@ from telegram.ext import (
     ContextTypes,
     filters
 )
-from telegram import ReplyKeyboardMarkup
 
-TOKEN = os.environ.get("BOT_TOKEN")
-ADMIN_ID = 8498170357
+# =====================
+# CONFIG
+# =====================
+TOKEN = os.getenv("BOT_TOKEN")   # set in Render Environment
+ADMIN_ID = int(os.getenv("ADMIN_ID", "123456789"))  # replace OR set env
 
-# Store user selections in memory (simple)
+# temporary memory (for now)
 user_plan = {}
 
-def main_menu(update):
-    keyboard = [
-        ["ðŸ’° Purchase Subscription", "ðŸ“„ My Subscriptions"],
-        ["ðŸ†˜ Contact Support", "ðŸ”„ Refresh Menu"]
-    ]
-    reply_markup = ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
-    update.message.reply_text(
-        "Welcome! You have been registered.\n\nMain Menu:",
-        reply_markup=reply_markup
+# =====================
+# MENUS
+# =====================
+def main_menu():
+    return ReplyKeyboardMarkup(
+        [
+            ["💰 Purchase Subscription", "📄 My Subscriptions"],
+            ["🆘 Contact Support", "🔄 Refresh Menu"]
+        ],
+        resize_keyboard=True
     )
 
-def start(update, context):
-    main_menu(update)
-
-def show_plans(update):
-    keyboard = [
-        ["Basic - â‚¹500"],
-        ["Premium Plus - â‚¹5000"],
-        ["Private Reels - â‚¹2000"],
-        ["VIP Users - â‚¹1000"],
-        ["â¬… Back"]
-    ]
-    reply_markup = ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
-    update.message.reply_text(
-        "Available subscription plans:",
-        reply_markup=reply_markup
+def plans_menu():
+    return ReplyKeyboardMarkup(
+        [
+            ["Basic - ₹500"],
+            ["Premium Plus - ₹5000"],
+            ["Private Reels - ₹2000"],
+            ["VIP Users - ₹1000"],
+            ["⬅ Back"]
+        ],
+        resize_keyboard=True
     )
 
-def show_payment_methods(update, plan_name, price):
-    keyboard = [
-        ["ðŸ‡®ðŸ‡³ Indian UPI Payment"],
-        ["ðŸŒ International Payment"],
-        ["âŒ Cancel"]
-    ]
-    reply_markup = ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
-    update.message.reply_text(
-        "Please select your payment method for:\n\n"
-        f"{plan_name} ({price})",
-        reply_markup=reply_markup
+def payment_menu():
+    return ReplyKeyboardMarkup(
+        [
+            ["🇮🇳 Indian UPI Payment"],
+            ["🌍 International Payment"],
+            ["❌ Cancel"]
+        ],
+        resize_keyboard=True
     )
 
-def handle_text(update, context):
+# =====================
+# COMMANDS
+# =====================
+async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await update.message.reply_text(
+        "✅ You are registered!\n\nWelcome to the bot 👋",
+        reply_markup=main_menu()
+    )
+
+# =====================
+# TEXT HANDLER
+# =====================
+async def handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
     text = update.message.text
     user_id = update.message.from_user.id
-	
-    if text.startswith("âœ… Approve"):
-        user_id = int(text.split()[-1])
-        context.bot.send_message(
-            chat_id=user_id,
-            text="ðŸŽ‰ Payment approved!\nYou will be added shortly."
+
+    # ADMIN ACTIONS
+    if text.startswith("✅ Approve"):
+        uid = int(text.split()[-1])
+        await context.bot.send_message(
+            chat_id=uid,
+            text="🎉 Payment approved!\nYou will be added shortly."
         )
-        update.message.reply_text("User approved âœ…")
+        await update.message.reply_text("User approved ✅")
         return
 
-    if text.startswith("âŒ Reject"):
-        user_id = int(text.split()[-1])
-        context.bot.send_message(
-            chat_id=user_id,
-            text="âŒ Payment rejected.\nPlease contact support."
+    if text.startswith("❌ Reject"):
+        uid = int(text.split()[-1])
+        await context.bot.send_message(
+            chat_id=uid,
+            text="❌ Payment rejected.\nPlease contact support."
         )
-        update.message.reply_text("User rejected âŒ")
+        await update.message.reply_text("User rejected ❌")
         return
 
-
-    if text == "ðŸ’° Purchase Subscription":
-        show_plans(update)
-
-    elif text == "ðŸ”„ Refresh Menu":
-        main_menu(update)
-
-    elif text == "â¬… Back":
-        main_menu(update)
-
-    elif text == "Basic - â‚¹500":
-        user_plan[user_id] = ("Basic", "â‚¹500")
-        update.message.reply_text(
-            "ðŸ“¦ *Basic Plan*\n"
-            "- Daily uploads of 2â€“3 pics/videos\n"
-            "- Free demo available\n",
-            parse_mode="Markdown"
+    # USER FLOW
+    if text == "💰 Purchase Subscription":
+        await update.message.reply_text(
+            "Choose a plan:",
+            reply_markup=plans_menu()
         )
-        show_payment_methods(update, "Basic", "â‚¹500")
 
-    elif text == "Premium Plus - â‚¹5000":
-        user_plan[user_id] = ("Premium Plus", "â‚¹5000")
-        update.message.reply_text(
-            "ðŸ“¦ *Premium Plus*\n"
-            "- Access to premium group\n"
-            "- Daily uploads\n",
-            parse_mode="Markdown"
+    elif text == "🔄 Refresh Menu" or text == "⬅ Back":
+        await update.message.reply_text(
+            "Main Menu:",
+            reply_markup=main_menu()
         )
-        show_payment_methods(update, "Premium Plus", "â‚¹5000")
 
-    elif text == "Private Reels - â‚¹2000":
-        user_plan[user_id] = ("Private Reels", "â‚¹2000")
-        update.message.reply_text(
-            "ðŸ“¦ *Private Reels*\n"
-            "- Unlimited reels\n"
-            "- Daily uploads\n",
-            parse_mode="Markdown"
+    elif text in ["Basic - ₹500", "Premium Plus - ₹5000", "Private Reels - ₹2000", "VIP Users - ₹1000"]:
+        plan, price = text.split(" - ")
+        user_plan[user_id] = (plan, price)
+
+        await update.message.reply_text(
+            f"📦 *{plan}*\nPrice: {price}\n\nSelect payment method:",
+            parse_mode="Markdown",
+            reply_markup=payment_menu()
         )
-        show_payment_methods(update, "Private Reels", "â‚¹2000")
 
-    elif text == "VIP Users - â‚¹1000":
-        user_plan[user_id] = ("VIP Users", "â‚¹1000")
-        update.message.reply_text(
-            "ðŸ“¦ *VIP Users*\n"
-            "- Exclusive videos\n",
-            parse_mode="Markdown"
-        )
-        show_payment_methods(update, "VIP Users", "â‚¹1000")
-
-    elif text == "ðŸ‡®ðŸ‡³ Indian UPI Payment":
-        plan = user_plan.get(user_id)
-        if not plan:
-            update.message.reply_text("Please select a plan first.")
+    elif text == "🇮🇳 Indian UPI Payment":
+        if user_id not in user_plan:
+            await update.message.reply_text("Please select a plan first.")
             return
 
-        update.message.reply_text(
-            "ðŸ“² *UPI Payment*\n\n"
-            "Send payment to:\n"
+        await update.message.reply_text(
+            "📲 *UPI Payment*\n\n"
+            "UPI ID:\n"
             "`paytm.s1axuq5@pty`\n\n"
             "After payment, send screenshot here.",
             parse_mode="Markdown"
         )
 
-        # OPTIONAL: Send QR image
-        # update.message.reply_photo(open("qr.png", "rb"))
-
-    elif text == "ðŸŒ International Payment":
-        update.message.reply_text(
-            "ðŸŒ *International Payment*\n\n"
-            "Payment via Remitly.\n"
-            "Instructions will be shared soon.",
-            parse_mode="Markdown"
+    elif text == "🌍 International Payment":
+        await update.message.reply_text(
+            "🌍 International payments coming soon.\nContact support."
         )
 
-    elif text == "âŒ Cancel":
-        main_menu(update)
+    elif text == "❌ Cancel":
+        await update.message.reply_text(
+            "Cancelled.",
+            reply_markup=main_menu()
+        )
 
     else:
-        update.message.reply_text("Please use the menu buttons.")
-		
-def handle_photo(update, context):
+        await update.message.reply_text("Please use menu buttons.")
+
+# =====================
+# PHOTO HANDLER
+# =====================
+async def handle_photo(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user = update.message.from_user
     user_id = user.id
     plan = user_plan.get(user_id, ("Unknown", "Unknown"))
 
     caption = (
-        "ðŸ“¸ *Payment Proof Received*\n\n"
-        f"ðŸ‘¤ User: {user.first_name}\n"
-        f"ðŸ†” User ID: `{user_id}`\n"
-        f"ðŸ“¦ Plan: {plan[0]} ({plan[1]})"
+        "📸 *Payment Proof*\n\n"
+        f"👤 User: {user.first_name}\n"
+        f"🆔 ID: `{user_id}`\n"
+        f"📦 Plan: {plan[0]} ({plan[1]})"
     )
 
-    keyboard = [
-        [f"âœ… Approve {user_id}", f"âŒ Reject {user_id}"]
-    ]
-
-    update.message.forward(
-        chat_id=ADMIN_ID
+    keyboard = ReplyKeyboardMarkup(
+        [[f"✅ Approve {user_id}", f"❌ Reject {user_id}"]],
+        resize_keyboard=True
     )
 
-    context.bot.send_message(
+    # forward photo to admin
+    await update.message.forward(chat_id=ADMIN_ID)
+
+    await context.bot.send_message(
         chat_id=ADMIN_ID,
         text=caption,
         parse_mode="Markdown",
-        reply_markup=ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
+        reply_markup=keyboard
     )
 
-    update.message.reply_text(
-        "âœ… Screenshot received.\nPlease wait for admin approval."
+    await update.message.reply_text(
+        "✅ Screenshot received.\nWaiting for admin approval."
     )
 
-
+# =====================
+# MAIN
+# =====================
 def main():
     app = ApplicationBuilder().token(TOKEN).build()
 
@@ -197,8 +180,8 @@ def main():
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_text))
     app.add_handler(MessageHandler(filters.PHOTO, handle_photo))
 
+    print("✅ Bot is running...")
     app.run_polling()
-
 
 if __name__ == "__main__":
     main()
